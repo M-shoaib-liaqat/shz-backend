@@ -4,11 +4,12 @@ import morgan from 'morgan'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import dotenv from 'dotenv'
-
-import mysql from 'mysql2/promise'
+import pkg from 'pg'
 
 dotenv.config()
 console.log('JWT_SECRET in use:', process.env.JWT_SECRET)
+
+const { Pool } = pkg
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -18,8 +19,8 @@ const PORT = process.env.PORT || 5000
 // Middleware
 app.use(cors({
   origin: [
-    "https://my-frontend.netlify.app",
-    "https://my-admin.netlify.app"
+    process.env.FRONTEND_URL,
+    process.env.ADMIN_URL
   ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
@@ -31,22 +32,21 @@ app.use(morgan('dev'))
 // Static file serving for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
-
-// MySQL setup using .env variables
-const pool = mysql.createPool({
+// PostgreSQL setup using .env variables
+const pool = new Pool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  port: process.env.DB_PORT,
+  ssl: { rejectUnauthorized: false }   // needed for Render Postgres
 })
 
-// Make db available to routes as req.db (pool)
-app.use((req, res, next) => { req.db = pool; next() })
-
-
+// Make db available to routes
+app.use((req, res, next) => {
+  req.db = pool
+  next()
+})
 
 // Routes
 import authRoutes from './routes/auth.js'
@@ -61,7 +61,9 @@ app.use('/api/services', serviceRoutes)
 app.use('/api/testimonials', testimonialRoutes)
 app.use('/api/messages', messageRoutes)
 
-app.get('/', (req, res) => res.json({ ok: true, status: 'SHZ Backend running', time: new Date().toISOString() }))
+app.get('/', (req, res) => 
+  res.json({ ok: true, status: 'SHZ Backend running', time: new Date().toISOString() })
+)
 
 app.use((err, req, res, next) => {
   console.error(err)
