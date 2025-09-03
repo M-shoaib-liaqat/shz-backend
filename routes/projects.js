@@ -51,8 +51,8 @@ const upload = multer({ storage })
       );
       if (result.rows.length === 0) return res.status(404).json({ message: 'Not found' });
       const row = result.rows[0];
-      row.image = row.image ? base + row.image : null;
-      row.gallery = row.gallery ? JSON.parse(row.gallery) : [];
+  row.image = row.image ? base + row.image : null;
+  row.gallery = row.gallery ? JSON.parse(row.gallery).map(g => g.startsWith('http') ? g : base + g) : [];
       res.json(row);
     } catch (err) {
       res.status(500).json({ message: err.message })
@@ -66,7 +66,7 @@ router.get('/', async (req, res) => {
     const projects = result.rows.map(r => ({
       ...r,
       image: r.image ? base + r.image : null,
-      gallery: r.gallery ? JSON.parse(r.gallery) : [],
+      gallery: r.gallery ? JSON.parse(r.gallery).map(g => g.startsWith('http') ? g : base + g) : [],
     }));
     res.json(projects);
   } catch (err) {
@@ -126,7 +126,7 @@ router.get('/:id', async (req, res) => {
   const row = result.rows[0];
   const base = `${req.protocol}://${req.get('host')}`;
   row.image = row.image ? base + row.image : null;
-  row.gallery = row.gallery ? JSON.parse(row.gallery) : [];
+  row.gallery = row.gallery ? JSON.parse(row.gallery).map(g => g.startsWith('http') ? g : base + g) : [];
   res.json(row);
   } catch (err) {
     res.status(500).json({ message: err.message })
